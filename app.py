@@ -1,7 +1,8 @@
-from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from Extensions import db
-from Database import Resource, Employee, Event, Roster
+from Database import User, Resource, Employee, Event, Roster
+from datetime import datetime
 
 def create_app():
     app = Flask(__name__)
@@ -11,28 +12,67 @@ def create_app():
 
     db.init_app(app)
 
+    login_manager = LoginManager()
+    login_manager.login_view = 'login'
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+
     with app.app_context():
         db.create_all()
+        # Create default admin if none exists
+        if not User.query.first():
+            admin = User(username="admin")
+            admin.set_password("admin123")
+            db.session.add(admin)
+            db.session.commit()
+
+    # -------------------------
+    # LOGIN ROUTES
+    # -------------------------
+
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        if request.method == 'POST':
+            username = request.form['username']
+            password = request.form['password']
+
+            user = User.query.filter_by(username=username).first()
+            if user and user.check_password(password):
+                login_user(user)
+                return redirect(url_for('index'))
+            flash("Invalid username or password")
+
+        return render_template('login.html')
+
+    @app.route('/logout')
+    @login_required
+    def logout():
+        logout_user()
+        return redirect(url_for('login'))
+
+    # -------------------------
+    # PROTECTED ROUTES
+    # -------------------------
 
     @app.route('/')
+    @login_required
     def index():
         upcoming_events = Event.query.order_by(Event.start_time.asc()).limit(5).all()
         available_resources = Resource.query.filter_by(in_use=False).all()
         employees = Employee.query.all()
-        return render_template(
-            'index.html',
-            events=upcoming_events,
-            resources=available_resources,
-            employees=employees
-        )
+        return render_template('index.html', events=upcoming_events, resources=available_resources, employees=employees)
 
-    # Resources
     @app.route('/resources')
+    @login_required
     def resources():
         resources = Resource.query.all()
         return render_template('resources.html', resources=resources)
 
     @app.route('/resources/new', methods=['POST'])
+    @login_required
     def new_resource():
         serial_number = request.form['serial_number']
         expiration_date = request.form.get('expiration_date') or None
@@ -55,14 +95,15 @@ def create_app():
         db.session.commit()
         return redirect(url_for('resources'))
 
-    # Employees / Rosters
     @app.route('/rosters')
+    @login_required
     def rosters():
         rosters = Roster.query.order_by(Roster.date.desc()).all()
         employees = Employee.query.all()
         return render_template('rosters.html', rosters=rosters, employees=employees)
 
     @app.route('/employees/new', methods=['POST'])
+    @login_required
     def new_employee():
         name = request.form['name']
         age = int(request.form['age'])
@@ -82,6 +123,7 @@ def create_app():
         return redirect(url_for('rosters'))
 
     @app.route('/rosters/new', methods=['POST'])
+    @login_required
     def new_roster():
         date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
         shift_name = request.form['shift_name']
@@ -98,8 +140,8 @@ def create_app():
         db.session.commit()
         return redirect(url_for('rosters'))
 
-    # Events
     @app.route('/events')
+    @login_required
     def events():
         events = Event.query.order_by(Event.start_time.desc()).all()
         employees = Employee.query.all()
@@ -107,6 +149,7 @@ def create_app():
         return render_template('events.html', events=events, employees=employees, resources=resources)
 
     @app.route('/events/new', methods=['POST'])
+    @login_required
     def new_event():
         title = request.form['title']
         location = request.form['location']

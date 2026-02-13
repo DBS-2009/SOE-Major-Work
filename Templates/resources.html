@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Resources</h2>
+
+<form method="post" action="{{ url_for('new_resource') }}">
+  <label>Serial Number: <input name="serial_number" required></label><br>
+  <label>Expiration Date: <input type="date" name="expiration_date"></label><br>
+  <label>Perishable: <input type="checkbox" name="perishable"></label><br>
+  <label>Condition: <input name="condition" value="Good"></label><br>
+  <label>In Use: <input type="checkbox" name="in_use"></label><br>
+  <button type="submit">Add Resource</button>
+</form>
+
+<table>
+  <thead>
+    <tr>
+      <th>Serial</th><th>Perishable</th><th>Expires</th><th>Condition</th><th>In Use</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in resources %}
+    <tr>
+      <td>{{ r.serial_number }}</td>
+      <td>{{ 'Yes' if r.perishable else 'No' }}</td>
+      <td>{{ r.expiration_date or '-' }}</td>
+      <td>{{ r.condition }}</td>
+      <td>{{ 'Yes' if r.in_use else 'No' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
