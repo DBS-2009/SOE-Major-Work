@@ -64,7 +64,8 @@
       </div>
       {% else %}
       <div style="text-align: center; padding: 2rem; color: #6b7982;">
-        <p>No rosters scheduled. {% if current_user.is_admin %}<button class="btn btn-primary" onclick="openAddRosterForm()" style="margin-top: 1rem;">Create one now</button>{% endif %}</p>
+        <p>No rosters scheduled.</p>
+        {% if current_user.is_admin %}<button class="btn btn-primary" onclick="openAddRosterForm()" style="margin-top: 1rem;">Create one now</button>{% endif %}
       </div>
       {% endfor %}
     </div>
