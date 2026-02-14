@@ -1,54 +1,168 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Events</h2>
+<div class="page-header">
+  <h2 class="page-title">Team Calendar</h2>
+</div>
 
-{% if current_user.is_admin %}
-<h3>Create Event</h3>
-<form method="post" action="{{ url_for('new_event') }}">
-  <label>Title: <input name="title" required></label><br>
-  <label>Location: <input name="location" required></label><br>
-  <label>Start: <input type="datetime-local" name="start_time" required></label><br>
-  <label>End: <input type="datetime-local" name="end_time" required></label><br>
+<!-- Top Controls -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding: 0 0.5rem;">
+  <div style="display: flex; gap: 1rem; align-items: center;">
+    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">← Today →</button>
+    <span style="color: #b0bcc4; font-size: 0.95rem;">{{ 'Now' }}</span>
+  </div>
+  
+  <div style="display: flex; gap: 0.5rem;">
+    <button class="btn btn-secondary" style="padding: 0.5rem 1rem;">Day</button>
+    <button class="btn btn-secondary" style="padding: 0.5rem 1rem;">Week</button>
+    <button class="btn btn-primary" style="padding: 0.5rem 1rem;">Month</button>
+    <span style="color: #b0bcc4; font-size: 0.9rem; margin-left: 1rem;">Calendar for:
+      <select style="background: #1a252f; border: 1px solid #2d3f4d; color: #e0e0e0; padding: 0.5rem; border-radius: 4px; margin-left: 0.5rem;">
+        <option>Team</option>
+      </select>
+    </span>
+    {% if current_user.is_admin %}
+    <button class="btn btn-primary" style="padding: 0.5rem 1rem; margin-left: 1rem;" onclick="openCreateEventForm()">+ Create</button>
+    {% endif %}
+  </div>
+</div>
 
-  <h4>Assign Employees</h4>
-  {% for emp in employees %}
-    <label>
-      <input type="checkbox" name="employee_ids" value="{{ emp.id }}">
-      {{ emp.name }}
-    </label><br>
-  {% endfor %}
-
-  <h4>Assign Resources</h4>
-  {% for r in resources %}
-    <label>
-      <input type="checkbox" name="resource_ids" value="{{ r.id }}">
-      {{ r.item_code }} — {{ r.description }}
-    </label><br>
-  {% endfor %}
-
-  <button type="submit">Create Event</button>
-</form>
-{% endif %}
-
-<h3>Existing Events</h3>
-<ul>
-  {% for e in events %}
-    <li>
-      <strong>{{ e.title }}</strong> — {{ e.location }}  
-      ({{ e.start_time }} → {{ e.end_time }})<br>
-
-      Employees:
-      {% for emp in e.employees %}
-        {{ emp.name }}{% if not loop.last %}, {% endif %}
-      {% endfor %}<br>
-
-      Resources:
-      {% for r in e.resources %}
-        {{ r.item_code }}{% if not loop.last %}, {% endif %}
+<!-- Simplified Calendar Grid -->
+<div class="table-wrapper" style="padding: 1.5rem; min-height: 600px;">
+  <div style="display: grid; grid-template-columns: 150px 1fr; gap: 1rem;">
+    
+    <!-- Employee List (Left Sidebar) -->
+    <div>
+      {% for emp in employees %}
+      <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #2d3f4d;">
+        <div style="width: 40px; height: 40px; border-radius: 50%; background: #0dccff; display: flex; align-items: center; justify-content: center; color: #0a1929; font-weight: 600; font-size: 0.85rem; margin-right: 0.75rem;">{{ emp.name[:1] }}</div>
+        <div>
+          <div style="font-weight: 500; color: #e0e0e0; font-size: 0.9rem;">{{ emp.name }}</div>
+          <div style="color: #6b7982; font-size: 0.8rem;">{{ emp.level_of_training or 'Staff' }}</div>
+        </div>
+      </div>
       {% endfor %}
-    </li>
-  {% endfor %}
-</ul>
+    </div>
+
+    <!-- Timeline / Events Grid -->
+    <div>
+      {% for e in events %}
+      <div style="background: #2d3f4d; border-left: 4px solid #0dccff; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#3a4f5f'" onmouseout="this.style.background='#2d3f4d'">
+        <div style="font-weight: 600; color: #0dccff; font-size: 0.95rem;">{{ e.title }}</div>
+        <div style="color: #b0bcc4; font-size: 0.85rem; margin-top: 0.5rem;">
+          📍 {{ e.location }}
+        </div>
+        <div style="color: #b0bcc4; font-size: 0.85rem; margin-top: 0.25rem;">
+          🕒 {{ e.start_time.strftime('%b %d, %H:%M') }} → {{ e.end_time.strftime('%H:%M') }}
+        </div>
+        
+        {% if e.employees %}
+        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #2d3f4d;">
+          <div style="color: #6b7982; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.35rem;">Assigned Staff:</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            {% for emp in e.employees %}
+            <span style="background: rgba(13, 204, 255, 0.2); color: #0dccff; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">{{ emp.name }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if e.resources %}
+        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #2d3f4d;">
+          <div style="color: #6b7982; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.35rem;">Resources:</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            {% for res in e.resources %}
+            <span style="background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.8rem;">{{ res.item_code }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div style="text-align: center; padding: 2rem; color: #6b7982;">
+        <p>No events scheduled for this period.</p>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+
+<!-- Create Event Modal (Admin Only) -->
+{% if current_user.is_admin %}
+<div id="createEventModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; display: none;">
+  <div style="background: #232f3a; border: 1px solid #2d3f4d; border-radius: 8px; padding: 2rem; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+    <h3 style="color: #0dccff; margin-bottom: 1.5rem;">Create New Event</h3>
+    <form method="post" action="{{ url_for('new_event') }}">
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; color: #b0bcc4; margin-bottom: 0.5rem;">Event Title *</label>
+        <input type="text" name="title" required style="width: 100%; padding: 0.65rem; background: #1a252f; border: 1px solid #2d3f4d; color: #e0e0e0; border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; color: #b0bcc4; margin-bottom: 0.5rem;">Location *</label>
+        <input type="text" name="location" required style="width: 100%; padding: 0.65rem; background: #1a252f; border: 1px solid #2d3f4d; color: #e0e0e0; border-radius: 4px;">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; color: #b0bcc4; margin-bottom: 0.5rem;">Start Time *</label>
+          <input type="datetime-local" name="start_time" required style="width: 100%; padding: 0.65rem; background: #1a252f; border: 1px solid #2d3f4d; color: #e0e0e0; border-radius: 4px;">
+        </div>
+        <div>
+          <label style="display: block; color: #b0bcc4; margin-bottom: 0.5rem;">End Time *</label>
+          <input type="datetime-local" name="end_time" required style="width: 100%; padding: 0.65rem; background: #1a252f; border: 1px solid #2d3f4d; color: #e0e0e0; border-radius: 4px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; color: #b0bcc4; margin-bottom: 0.75rem; font-weight: 600;">Assign Employees</label>
+        <div style="background: #1a252f; border: 1px solid #2d3f4d; border-radius: 4px; padding: 1rem; max-height: 200px; overflow-y: auto;">
+          {% for emp in employees %}
+          <label style="display: flex; align-items: center; margin-bottom: 0.75rem; cursor: pointer;">
+            <input type="checkbox" name="employee_ids" value="{{ emp.id }}" style="margin-right: 0.75rem; cursor: pointer;">
+            <span style="color: #e0e0e0;">{{ emp.name }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 2rem;">
+        <label style="display: block; color: #b0bcc4; margin-bottom: 0.75rem; font-weight: 600;">Assign Resources</label>
+        <div style="background: #1a252f; border: 1px solid #2d3f4d; border-radius: 4px; padding: 1rem; max-height: 200px; overflow-y: auto;">
+          {% for res in resources %}
+          <label style="display: flex; align-items: center; margin-bottom: 0.75rem; cursor: pointer;">
+            <input type="checkbox" name="resource_ids" value="{{ res.id }}" style="margin-right: 0.75rem; cursor: pointer;">
+            <span style="color: #e0e0e0;">{{ res.item_code }} — {{ res.description or 'N/A' }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #2d3f4d;">
+        <button type="button" class="btn btn-secondary" onclick="closeCreateEventForm()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Event</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openCreateEventForm() {
+    document.getElementById('createEventModal').style.display = 'flex';
+  }
+
+  function closeCreateEventForm() {
+    document.getElementById('createEventModal').style.display = 'none';
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('createEventModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeCreateEventForm();
+    }
+  });
+</script>
+{% endif %}
 
 {% endblock %}

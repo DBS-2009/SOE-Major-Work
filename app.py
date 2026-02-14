@@ -95,6 +95,12 @@ def create_app():
     def resources():
         return render_template('resources.html', resources=Resource.query.all())
 
+    @app.route('/resources/<int:resource_id>')
+    @login_required
+    def resource_detail(resource_id):
+        resource = Resource.query.get_or_404(resource_id)
+        return render_template('resource_detail.html', resource=resource)
+
     @app.route('/resources/new', methods=['POST'])
     @login_required
     @admin_required

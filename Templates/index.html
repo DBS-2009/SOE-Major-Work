@@ -1,8 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Dashboard</h2>
-
+<h1>Dashboard</h1>
+<style>
+  h1{
+    margin-bottom: 20px;
+  }
+</style>
+<h2>Welcome, {{ current_user.username }}!</h2>
+<style>
+  h2{
+    margin-bottom: 20px;
+  }
+</style>
 <section>
   <h3>Upcoming Events</h3>
   <ul>
@@ -17,26 +27,5 @@
   </ul>
 </section>
 
-<section>
-  <h3>Resources</h3>
-  <ul>
-    {% for r in resources %}
-      <li>{{ r.item_code }} — {{ r.description }}</li>
-    {% else %}
-      <li>No resources found.</li>
-    {% endfor %}
-  </ul>
-</section>
-
-<section>
-  <h3>Employees</h3>
-  <ul>
-    {% for emp in employees %}
-      <li>{{ emp.name }} — {{ emp.level_of_training }}</li>
-    {% else %}
-      <li>No employees found.</li>
-    {% endfor %}
-  </ul>
-</section>
 
 {% endblock %}
