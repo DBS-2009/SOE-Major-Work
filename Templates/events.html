@@ -1,54 +1,54 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h2>Events</h2>
 
+{% if current_user.is_admin %}
+<h3>Create Event</h3>
 <form method="post" action="{{ url_for('new_event') }}">
   <label>Title: <input name="title" required></label><br>
   <label>Location: <input name="location" required></label><br>
   <label>Start: <input type="datetime-local" name="start_time" required></label><br>
   <label>End: <input type="datetime-local" name="end_time" required></label><br>
 
-  <fieldset>
-    <legend>Allocate Employees</legend>
-    {% for emp in employees %}
-      <label>
-        <input type="checkbox" name="employee_ids" value="{{ emp.id }}">
-        {{ emp.name }} ({{ emp.level_of_training }}, {{ emp.training_status }})
-      </label><br>
-    {% endfor %}
-  </fieldset>
+  <h4>Assign Employees</h4>
+  {% for emp in employees %}
+    <label>
+      <input type="checkbox" name="employee_ids" value="{{ emp.id }}">
+      {{ emp.name }}
+    </label><br>
+  {% endfor %}
 
-  <fieldset>
-    <legend>Allocate Resources</legend>
-    {% for r in resources %}
-      <label>
-        <input type="checkbox" name="resource_ids" value="{{ r.id }}" {% if r.in_use %}disabled{% endif %}>
-        {{ r.serial_number }} ({{ r.condition }}) {% if r.in_use %}- In Use{% endif %}
-      </label><br>
-    {% endfor %}
-  </fieldset>
+  <h4>Assign Resources</h4>
+  {% for r in resources %}
+    <label>
+      <input type="checkbox" name="resource_ids" value="{{ r.id }}">
+      {{ r.item_code }} — {{ r.description }}
+    </label><br>
+  {% endfor %}
 
   <button type="submit">Create Event</button>
 </form>
+{% endif %}
 
+<h3>Existing Events</h3>
 <ul>
   {% for e in events %}
     <li>
-      <strong>{{ e.title }}</strong> – {{ e.location }} –
-      {{ e.start_time }} to {{ e.end_time }}<br>
+      <strong>{{ e.title }}</strong> — {{ e.location }}  
+      ({{ e.start_time }} → {{ e.end_time }})<br>
+
       Employees:
       {% for emp in e.employees %}
         {{ emp.name }}{% if not loop.last %}, {% endif %}
-      {% else %}
-        None
       {% endfor %}<br>
+
       Resources:
       {% for r in e.resources %}
-        {{ r.serial_number }}{% if not loop.last %}, {% endif %}
-      {% else %}
-        None
+        {{ r.item_code }}{% if not loop.last %}, {% endif %}
       {% endfor %}
     </li>
   {% endfor %}
 </ul>
+
 {% endblock %}

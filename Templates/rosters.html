@@ -1,34 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Employees</h2>
-<form method="post" action="{{ url_for('new_employee') }}">
-  <label>Name: <input name="name" required></label><br>
-  <label>Age: <input type="number" name="age" required></label><br>
-  <label>Experience (years): <input type="number" name="experience_years" value="0"></label><br>
-  <label>Level of Training: <input name="level_of_training" required></label><br>
-  <label>Training Status: <input name="training_status" value="Not Trained"></label><br>
-  <button type="submit">Add Employee</button>
-</form>
 
-<h3>Rosters</h3>
+<h2>Rosters</h2>
+
+{% if current_user.is_admin %}
+<h3>Add Roster Entry</h3>
 <form method="post" action="{{ url_for('new_roster') }}">
   <label>Date: <input type="date" name="date" required></label><br>
   <label>Shift Name: <input name="shift_name" required></label><br>
+
   <label>Employee:
-    <select name="employee_id" required>
+    <select name="employee_id">
       {% for emp in employees %}
-        <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.level_of_training }})</option>
+        <option value="{{ emp.id }}">{{ emp.name }}</option>
       {% endfor %}
     </select>
   </label><br>
+
   <label>Job Description: <input name="job_description"></label><br>
+
   <button type="submit">Add Roster</button>
 </form>
+{% endif %}
 
 <table>
   <thead>
     <tr>
-      <th>Date</th><th>Shift</th><th>Employee</th><th>Job</th>
+      <th>Date</th>
+      <th>Shift</th>
+      <th>Employee</th>
+      <th>Job</th>
     </tr>
   </thead>
   <tbody>
@@ -37,9 +38,10 @@
       <td>{{ r.date }}</td>
       <td>{{ r.shift_name }}</td>
       <td>{{ r.employee.name }}</td>
-      <td>{{ r.job_description or '-' }}</td>
+      <td>{{ r.job_description }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
 {% endblock %}

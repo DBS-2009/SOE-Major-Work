@@ -82,6 +82,12 @@ def create_app():
         employees = Employee.query.all()
         return render_template('index.html', events=events, resources=resources, employees=employees)
 
+    @app.route('/users')
+    @login_required
+    @admin_required
+    def users():
+        return render_template('users.html', users=User.query.all())
+
     # ---------------- RESOURCES ----------------
 
     @app.route('/resources')

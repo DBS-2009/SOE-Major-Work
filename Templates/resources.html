@@ -1,32 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h2>Resources</h2>
 
+{% if current_user.is_admin %}
+<h3>Add New Resource</h3>
 <form method="post" action="{{ url_for('new_resource') }}">
-  <label>Serial Number: <input name="serial_number" required></label><br>
-  <label>Expiration Date: <input type="date" name="expiration_date"></label><br>
-  <label>Perishable: <input type="checkbox" name="perishable"></label><br>
-  <label>Condition: <input name="condition" value="Good"></label><br>
-  <label>In Use: <input type="checkbox" name="in_use"></label><br>
+  <label>Item Code: <input name="item_code" required></label><br>
+  <label>Category: <input name="category" required></label><br>
+  <label>Type: <input name="type" required></label><br>
+  <label>Description: <input name="description"></label><br>
+  <label>Quantity: <input type="number" name="qty" required></label><br>
+  <label>Asset Number: <input name="asset_number"></label><br>
+  <label>Date of Manufacture: <input type="date" name="dom"></label><br>
+  <label>Lifespan (years): <input type="number" name="lifespan_years"></label><br>
   <button type="submit">Add Resource</button>
 </form>
+{% endif %}
 
 <table>
   <thead>
     <tr>
-      <th>Serial</th><th>Perishable</th><th>Expires</th><th>Condition</th><th>In Use</th>
+      <th>Item Code</th>
+      <th>Category</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Qty</th>
+      <th>Asset #</th>
+      <th>DOM</th>
+      <th>Lifespan</th>
     </tr>
   </thead>
   <tbody>
     {% for r in resources %}
     <tr>
-      <td>{{ r.serial_number }}</td>
-      <td>{{ 'Yes' if r.perishable else 'No' }}</td>
-      <td>{{ r.expiration_date or '-' }}</td>
-      <td>{{ r.condition }}</td>
-      <td>{{ 'Yes' if r.in_use else 'No' }}</td>
+      <td>{{ r.item_code }}</td>
+      <td>{{ r.category }}</td>
+      <td>{{ r.type }}</td>
+      <td>{{ r.description }}</td>
+      <td>{{ r.qty }}</td>
+      <td>{{ r.asset_number }}</td>
+      <td>{{ r.dom }}</td>
+      <td>{{ r.lifespan_years }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
 {% endblock %}

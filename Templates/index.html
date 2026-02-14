@@ -1,38 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
+
+<h2>Dashboard</h2>
+
 <section>
-  <h2>Upcoming Events</h2>
+  <h3>Upcoming Events</h3>
   <ul>
     {% for e in events %}
       <li>
-        <strong>{{ e.title }}</strong> – {{ e.location }} –
-        {{ e.start_time }} to {{ e.end_time }}
+        <strong>{{ e.title }}</strong> — {{ e.location }}  
+        ({{ e.start_time }} → {{ e.end_time }})
       </li>
     {% else %}
-      <li>No upcoming events.</li>
+      <li>No events scheduled.</li>
     {% endfor %}
   </ul>
 </section>
 
 <section>
-  <h2>Available Resources</h2>
+  <h3>Resources</h3>
   <ul>
     {% for r in resources %}
-      <li>{{ r.serial_number }} ({{ r.condition }}){% if r.expiration_date %} – exp {{ r.expiration_date }}{% endif %}</li>
+      <li>{{ r.item_code }} — {{ r.description }}</li>
     {% else %}
-      <li>No available resources.</li>
+      <li>No resources found.</li>
     {% endfor %}
   </ul>
 </section>
 
 <section>
-  <h2>Employees</h2>
+  <h3>Employees</h3>
   <ul>
     {% for emp in employees %}
-      <li>{{ emp.name }} – {{ emp.level_of_training }} – {{ emp.training_status }}</li>
+      <li>{{ emp.name }} — {{ emp.level_of_training }}</li>
     {% else %}
-      <li>No employees yet.</li>
+      <li>No employees found.</li>
     {% endfor %}
   </ul>
 </section>
+
 {% endblock %}
