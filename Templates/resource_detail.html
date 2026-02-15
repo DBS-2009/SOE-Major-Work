@@ -5,6 +5,16 @@
   <a href="{{ url_for('resources') }}" style="color: #0dccff; text-decoration: none; font-size: 0.9rem;">← Back to Resources</a>
 </div>
 
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div style="margin-bottom:1rem;">
+      {% for msg in messages %}
+        <div style="background: rgba(13,204,255,0.08); border:1px solid #2d3f4d; color:#b0bcc4; padding:0.75rem; border-radius:4px; margin-bottom:0.5rem;">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
 <div class="page-header">
   <h2 class="page-title">Resource Details</h2>
 </div>
@@ -72,10 +82,24 @@
   <!-- Action Buttons -->
   {% if current_user.is_admin %}
   <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #2d3f4d; display: flex; gap: 1rem;">
-    <button class="btn btn-secondary" style="flex: 1;">Edit Resource</button>
-    <button class="btn btn-secondary" style="flex: 1; color: #ff6b6b; border-color: #ff6b6b;">Delete Resource</button>
+    <a href="{{ url_for('edit_resource', resource_id=resource.id) }}" style="flex:1; text-decoration:none;">
+      <button class="btn btn-secondary" style="width:100%;">Edit Resource</button>
+    </a>
+
+    <form method="post" action="{{ url_for('delete_resource', resource_id=resource.id) }}" style="flex:1; margin:0;">
+      <button type="button" class="btn btn-secondary" style="width:100%; color: #ff6b6b; border-color: #ff6b6b;" onclick="confirmDeleteResource()">Delete Resource</button>
+    </form>
   </div>
   {% endif %}
 </div>
+
+<script>
+  function confirmDeleteResource(){
+    if(confirm('Delete this resource? This action cannot be undone.')){
+      const form = document.querySelector('form[action^="{{ url_for("delete_resource", resource_id=resource.id) }}"]');
+      if(form) form.submit();
+    }
+  }
+</script>
 
 {% endblock %}

@@ -22,7 +22,8 @@
       </select>
     </span>
     {% if current_user.is_admin %}
-    <button class="btn btn-primary" style="padding: 0.5rem 1rem; margin-left: 1rem;" onclick="openCreateEventForm()">+ Create</button>
+    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; margin-left: 0.5rem;" onclick="openManagePresets()">Manage Presets</button>
+    <button class="btn btn-primary" style="padding: 0.5rem 1rem; margin-left: 0.5rem;" onclick="openCreateEventForm()">+ Create</button>
     {% endif %}
   </div>
 </div>
@@ -137,15 +138,96 @@
         </div>
       </div>
 
+      <!-- NEW resource selector: presets + searchable resource picker -->
       <div style="margin-bottom: 2rem;">
         <label style="display: block; color: #b0bcc4; margin-bottom: 0.75rem; font-weight: 600;">Assign Resources</label>
-        <div style="background: #1a252f; border: 1px solid #2d3f4d; border-radius: 4px; padding: 1rem; max-height: 200px; overflow-y: auto;">
-          {% for res in resources %}
-          <label style="display: flex; align-items: center; margin-bottom: 0.75rem; cursor: pointer;">
-            <input type="checkbox" name="resource_ids" value="{{ res.id }}" style="margin-right: 0.75rem; cursor: pointer;">
-            <span style="color: #e0e0e0;">{{ res.item_code }} — {{ res.description or 'N/A' }}</span>
-          </label>
-          {% endfor %}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label style="color: #b0bcc4; font-size: 0.85rem; margin-bottom: 0.5rem; display:block;">Preset</label>
+            <select name="preset_id" id="presetSelect" style="width:100%; padding:0.5rem; background:#1a252f; border:1px solid #2d3f4d; color:#e0e0e0; border-radius:4px;" onchange="applyPreset(this.value)">
+              <option value="">— None —</option>
+              {% for p in presets %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+
+            <div style="color:#6b7982; font-size:0.75rem; margin-top:0.5rem;">Choose a preset to pre-fill resources for this event.</div>
+          </div>
+
+          <div>
+            <label style="color: #b0bcc4; font-size: 0.85rem; margin-bottom: 0.5rem; display:block;">Search & add resources</label>
+            <input id="resourceSearch" type="text" placeholder="Search resources by code or description..." oninput="filterResourceList()" style="width:100%; padding:0.5rem; background:#1a252f; border:1px solid #2d3f4d; color:#e0e0e0; border-radius:4px; margin-bottom:0.5rem;">
+            <div id="resourceList" style="background: #1a252f; border: 1px solid #2d3f4d; border-radius:4px; padding:0.75rem; max-height:180px; overflow-y:auto;">
+              {% for res in resources %}
+              <div class="resource-row" data-id="{{ res.id }}" data-text="{{ (res.item_code + ' ' + (res.description or '')) | lower }}" style="display:flex; justify-content:space-between; align-items:center; padding:0.35rem 0.25rem; border-bottom:1px solid #26323a;">
+                <div style="color:#e0e0e0; font-size:0.85rem;">{{ res.item_code }} — {{ res.description or 'N/A' }}</div>
+                <button type="button" class="btn btn-secondary" onclick="addResourceFromList('{{ res.id }}','{{ res.item_code }}')">Add</button>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:1rem;">
+          <div style="color: #6b7982; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.35rem;">Selected resources</div>
+          <div id="selectedResources" style="display:flex; flex-wrap:wrap; gap:0.5rem; min-height:36px; padding:0.35rem; background:#0f1a20; border-radius:4px; border:1px solid #24303a;"></div>
+        </div>
+      </div>
+
+      <!-- Manage Presets Modal (Admin) -->
+      <div id="managePresetsModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1100; align-items: center; justify-content: center; display: none;">
+        <div style="background: #232f3a; border: 1px solid #2d3f4d; border-radius: 8px; padding: 1.5rem; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="color: #0dccff; margin:0;">Manage Resource Presets</h3>
+            <button class="btn btn-secondary" onclick="closeManagePresets()">Close</button>
+          </div>
+
+          <div style="display:flex; gap:1rem;">
+            <div style="flex:1;">
+              <h4 style="color:#b0bcc4; font-size:0.95rem; margin-bottom:0.5rem;">Existing Presets</h4>
+              {% if presets %}
+              <div style="background:#1a252f; border:1px solid #2d3f4d; border-radius:6px; padding:0.75rem; max-height:360px; overflow-y:auto;">
+                {% for p in presets %}
+                <div style="padding:0.5rem; border-bottom:1px solid #26323a; display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+                  <div>
+                    <div style="color:#e0e0e0; font-weight:600;">{{ p.name }}</div>
+                    <div style="color:#6b7982; font-size:0.8rem; margin-top:0.25rem;">{% for r in p.resources %} <span style="background: rgba(76, 175, 80, 0.08); color:#9de6a8; padding:0.15rem 0.35rem; border-radius:3px; font-size:0.75rem; margin-right:0.25rem;">{{ r.item_code }}</span>{% endfor %}</div>
+                  </div>
+                  <div style="display:flex; gap:0.5rem;">
+                    <form method="POST" action="/presets/{{ p.id }}/delete" onsubmit="return confirm('Delete preset &quot;{{ p.name }}&quot;?')">
+                      <button type="submit" class="btn" style="color:#ff6b6b; border-color:#ff6b6b;">Delete</button>
+                    </form>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div style="color:#6b7982;">No presets created yet.</div>
+              {% endif %}
+            </div>
+
+            <div style="width:320px;">
+              <h4 style="color:#b0bcc4; font-size:0.95rem; margin-bottom:0.5rem;">Create Preset</h4>
+              <form method="POST" action="/presets/new">
+                <div style="margin-bottom:0.5rem;">
+                  <input name="name" placeholder="Preset name" required style="width:100%; padding:0.5rem; background:#1a252f; border:1px solid #2d3f4d; color:#e0e0e0; border-radius:4px;">
+                </div>
+                <div style="max-height:260px; overflow-y:auto; background:#0f1a20; border-radius:4px; padding:0.5rem; border:1px solid #24303a;">
+                  {% for res in resources %}
+                  <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+                    <input type="checkbox" name="resource_ids" value="{{ res.id }}">
+                    <span style="color:#e0e0e0;">{{ res.item_code }} — {{ res.description or 'N/A' }}</span>
+                  </label>
+                  {% endfor %}
+                </div>
+                <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.75rem;">
+                  <button type="button" class="btn btn-secondary" onclick="closeManagePresets()">Cancel</button>
+                  <button type="submit" class="btn btn-primary">Create Preset</button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -158,11 +240,26 @@
 </div>
 
 <script>
+  // mapping of preset_id -> [resource_id,...]
+  const PRESETS = {
+    {% for p in presets %}
+      "{{ p.id }}": [ {% for r in p.resources %} {{ r.id }} {% if not loop.last %}, {% endif %}{% endfor %} ]{% if not loop.last %}, {% endif %}
+    {% endfor %}
+  };
+
+  let selectedResourceIds = new Set();
+
   function openCreateEventForm() {
     document.getElementById('createEventModal').style.display = 'flex';
   }
 
   function closeCreateEventForm() {
+    // clear temporary UI state when closing
+    selectedResourceIds.clear();
+    document.getElementById('selectedResources').innerHTML = '';
+    // remove any hidden inputs named resource_ids
+    document.querySelectorAll('input[name="resource_ids"][type="hidden"]').forEach(n => n.remove());
+    document.getElementById('presetSelect').value = '';
     document.getElementById('createEventModal').style.display = 'none';
   }
 
@@ -176,7 +273,85 @@
     }
   }
 
-  // Close modal when clicking outside
+  function addResourceFromList(id, code) {
+    addSelectedResource(id, code);
+  }
+
+  function addSelectedResource(id, code) {
+    const numericId = String(id);
+    if (selectedResourceIds.has(numericId)) return; // already added
+    selectedResourceIds.add(numericId);
+
+    // visual badge
+    const badge = document.createElement('span');
+    badge.className = 'selected-resource-badge';
+    badge.dataset.id = numericId;
+    badge.style.background = 'rgba(76, 175, 80, 0.08)';
+    badge.style.color = '#9de6a8';
+    badge.style.padding = '0.25rem 0.5rem';
+    badge.style.borderRadius = '4px';
+    badge.style.display = 'inline-flex';
+    badge.style.alignItems = 'center';
+    badge.style.gap = '0.5rem';
+    badge.innerHTML = `<strong style="font-weight:600; color:#e0e0e0;">${code}</strong> <button type="button" style="background:transparent; border:none; color:#ff6b6b; cursor:pointer;">✕</button>`;
+
+    badge.querySelector('button').addEventListener('click', () => removeSelectedResource(numericId));
+
+    document.getElementById('selectedResources').appendChild(badge);
+
+    // hidden input so Flask receives resource_ids
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.name = 'resource_ids';
+    hidden.value = numericId;
+    hidden.dataset.for = `res-${numericId}`;
+    document.querySelector('form').appendChild(hidden);
+  }
+
+  function removeSelectedResource(id) {
+    selectedResourceIds.delete(String(id));
+    const badge = document.querySelector(`#selectedResources span[data-id='${id}']`);
+    if (badge) badge.remove();
+    // remove hidden input
+    document.querySelectorAll(`input[name="resource_ids"][value="${id}"]`).forEach(n => n.remove());
+  }
+
+  function applyPreset(presetId) {
+    // clear current selections
+    selectedResourceIds = new Set();
+    document.getElementById('selectedResources').innerHTML = '';
+    document.querySelectorAll('input[name="resource_ids"][type="hidden"]').forEach(n => n.remove());
+
+    if (!presetId) return;
+    const list = PRESETS[presetId] || [];
+    list.forEach(rid => {
+      // find item_code for display (from resource-row) if available
+      const row = document.querySelector(`.resource-row[data-id='${rid}']`);
+      const code = row ? row.textContent.trim().split('—')[0].trim() : rid;
+      addSelectedResource(rid, code);
+    });
+  }
+
+  function filterResourceList() {
+    const q = (document.getElementById('resourceSearch').value || '').trim().toLowerCase();
+    document.querySelectorAll('.resource-row').forEach(row => {
+      const text = row.dataset.text || '';
+      row.style.display = q === '' || text.indexOf(q) !== -1 ? 'flex' : 'none';
+    });
+  }
+
+  // Manage Presets modal
+  function openManagePresets() {
+    document.getElementById('managePresetsModal').style.display = 'flex';
+  }
+  function closeManagePresets() {
+    document.getElementById('managePresetsModal').style.display = 'none';
+  }
+  document.getElementById('managePresetsModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeManagePresets();
+  });
+
+  // Close create modal when clicking outside
   document.getElementById('createEventModal').addEventListener('click', function(e) {
     if (e.target === this) {
       closeCreateEventForm();

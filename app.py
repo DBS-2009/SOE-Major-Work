@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from Extensions import db
-from Database import User, Resource, Employee, Roster, Event
+from Database import User, Resource, Employee, Roster, Event, ResourcePreset
 from datetime import datetime
 from functools import wraps
 
@@ -168,6 +168,60 @@ def create_app():
         flash(f"Resource '{item_code}' has been added successfully.")
         return redirect(url_for('resource_detail', resource_id=r.id))
 
+    @app.route('/resources/<int:resource_id>/edit', methods=['GET', 'POST'])
+    @login_required
+    @admin_required
+    def edit_resource(resource_id):
+        resource = Resource.query.get_or_404(resource_id)
+        if request.method == 'GET':
+            return render_template('resource_edit.html', resource=resource)
+
+        # POST: update fields
+        item_code = (request.form.get('item_code') or '').strip()
+        if not item_code:
+            flash('Item code is required.')
+            return redirect(url_for('edit_resource', resource_id=resource.id))
+
+        # ensure uniqueness excluding current resource
+        existing = Resource.query.filter(Resource.item_code == item_code, Resource.id != resource.id).first()
+        if existing:
+            flash(f"Another resource with item code '{item_code}' already exists.")
+            return redirect(url_for('edit_resource', resource_id=resource.id))
+
+        resource.item_code = item_code
+        resource.category = (request.form.get('category') or '').strip()
+        resource.type = (request.form.get('type') or '').strip()
+        resource.description = (request.form.get('description') or '').strip()
+        try:
+            resource.qty = int(request.form.get('qty') or resource.qty or 1)
+        except ValueError:
+            resource.qty = resource.qty or 1
+        resource.asset_number = (request.form.get('asset_number') or '').strip()
+        dom = request.form.get('dom')
+        try:
+            resource.dom = datetime.strptime(dom, "%Y-%m-%d").date() if dom and dom.strip() != '' else None
+        except Exception:
+            pass
+        try:
+            lifespan = request.form.get('lifespan_years')
+            resource.lifespan_years = int(lifespan) if lifespan and lifespan.strip() != '' else None
+        except ValueError:
+            pass
+
+        db.session.commit()
+        flash(f"Resource '{resource.item_code}' updated.")
+        return redirect(url_for('resource_detail', resource_id=resource.id))
+
+    @app.route('/resources/<int:resource_id>/delete', methods=['POST'])
+    @login_required
+    @admin_required
+    def delete_resource(resource_id):
+        resource = Resource.query.get_or_404(resource_id)
+        db.session.delete(resource)
+        db.session.commit()
+        flash(f"Resource '{resource.item_code}' deleted.")
+        return redirect(url_for('resources'))
+
     # ---------------- ROSTERS ----------------
 
     @app.route('/rosters')
@@ -232,7 +286,8 @@ def create_app():
         return render_template('events.html',
                                events=Event.query.all(),
                                employees=Employee.query.all(),
-                               resources=Resource.query.all())
+                               resources=Resource.query.all(),
+                               presets=ResourcePreset.query.all())
 
     @app.route('/events/new', methods=['POST'])
     @login_required
@@ -245,11 +300,32 @@ def create_app():
             end_time=datetime.strptime(request.form['end_time'], "%Y-%m-%dT%H:%M")
         )
 
+        # employees (same as before)
         for emp_id in request.form.getlist('employee_ids'):
-            e.employees.append(Employee.query.get(int(emp_id)))
+            emp = Employee.query.get(int(emp_id))
+            if emp and emp not in e.employees:
+                e.employees.append(emp)
 
+        # if a preset was selected, add its resources first
+        preset_id = request.form.get('preset_id')
+        if preset_id:
+            try:
+                preset = ResourcePreset.query.get(int(preset_id))
+            except Exception:
+                preset = None
+            if preset:
+                for r in preset.resources:
+                    if r not in e.resources:
+                        e.resources.append(r)
+
+        # explicit resource selections (also supports additions/removals from UI)
         for res_id in request.form.getlist('resource_ids'):
-            e.resources.append(Resource.query.get(int(res_id)))
+            try:
+                r = Resource.query.get(int(res_id))
+            except Exception:
+                r = None
+            if r and r not in e.resources:
+                e.resources.append(r)
 
         db.session.add(e)
         db.session.commit()
@@ -262,6 +338,39 @@ def create_app():
         event = Event.query.get_or_404(event_id)
         db.session.delete(event)
         db.session.commit()
+        return redirect(url_for('events'))
+
+    # ---------------- PRESETS ----------------
+
+    @app.route('/presets/new', methods=['POST'])
+    @login_required
+    @admin_required
+    def new_preset():
+        name = (request.form.get('name') or '').strip()
+        if not name:
+            flash('Preset name is required.')
+            return redirect(url_for('events'))
+        if ResourcePreset.query.filter_by(name=name).first():
+            flash('A preset with that name already exists.')
+            return redirect(url_for('events'))
+        p = ResourcePreset(name=name, description=(request.form.get('description') or '').strip())
+        for res_id in request.form.getlist('resource_ids'):
+            r = Resource.query.get(int(res_id))
+            if r:
+                p.resources.append(r)
+        db.session.add(p)
+        db.session.commit()
+        flash(f"Preset '{p.name}' created.")
+        return redirect(url_for('events'))
+
+    @app.route('/presets/<int:preset_id>/delete', methods=['POST'])
+    @login_required
+    @admin_required
+    def delete_preset(preset_id):
+        p = ResourcePreset.query.get_or_404(preset_id)
+        db.session.delete(p)
+        db.session.commit()
+        flash(f"Preset '{p.name}' deleted.")
         return redirect(url_for('events'))
 
     # ---------- USER MANAGEMENT ----------

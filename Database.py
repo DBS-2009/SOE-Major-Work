@@ -68,3 +68,22 @@ class Event(db.Model):
 
     employees = db.relationship("Employee", secondary=event_employee)
     resources = db.relationship("Resource", secondary=event_resource)
+
+
+# --- Resource Presets (many-to-many with Resource) ---
+preset_resource = db.Table(
+    'preset_resource',
+    db.Column('preset_id', db.Integer, db.ForeignKey('resource_preset.id')),
+    db.Column('resource_id', db.Integer, db.ForeignKey('resource.id'))
+)
+
+class ResourcePreset(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(140), unique=True, nullable=False)
+    description = db.Column(db.String(255))
+
+    # resources included in this preset
+    resources = db.relationship('Resource', secondary=preset_resource)
+
+    def __repr__(self):
+        return f"<ResourcePreset {self.name}>"
