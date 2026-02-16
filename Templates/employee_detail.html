@@ -64,6 +64,20 @@
               <span class="status-badge">Active</span>
             </div>
           </div>
+          <div style="grid-column: span 2;">
+            <label style="color: #b0bcc4; font-size: 0.85rem; text-transform: uppercase;">Qualifications</label>
+            <div style="color: #e0e0e0; font-size: 0.95rem; margin-top: 0.5rem;">
+              {% if employee.qualifications %}
+                {% for q in employee.qualifications %}
+                  <div style="background: rgba(13, 204, 255, 0.08); color:#9de6ff; padding:0.2rem 0.4rem; border-radius:3px; font-size:0.85rem; margin-bottom:0.5rem;">
+                    {{ q.name }}
+                  </div>
+                {% endfor %}
+              {% else %}
+                <span style="color:#6b7982; font-size:0.85rem;">—</span>
+              {% endif %}
+            </div>
+          </div>
         </div>
       </div>
     </div>

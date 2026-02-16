@@ -6,6 +6,137 @@ from datetime import datetime
 from sqlalchemy.exc import OperationalError
 from functools import wraps
 
+
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_admin:
+            abort(403)
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def create_app():
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///rostering.db'
+    app.config['SECRET_KEY'] = 'change-me'
+
+    db.init_app(app)
+
+    login_manager = LoginManager()
+    login_manager.login_view = "login"
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+
+    with app.app_context():
+        db.create_all()
+        # ...existing code...
+
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_admin:
+            abort(403)
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def create_app():
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///rostering.db'
+    app.config['SECRET_KEY'] = 'change-me'
+
+    db.init_app(app)
+
+    login_manager = LoginManager()
+    login_manager.login_view = "login"
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+
+    with app.app_context():
+        db.create_all()
+        # Ensure certain columns exist in SQLite DB (helpful when evolving schema without migrations)
+        def ensure_column(table, column, add_sql):
+            try:
+                res = db.session.execute(f"PRAGMA table_info('{table}')").fetchall()
+                existing = [r[1] for r in res]
+                if column not in existing:
+                    db.session.execute(add_sql)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        # Add user.employee_id, event.setup_minutes, event.packup_minutes if missing
+        ensure_column('user', 'employee_id', "ALTER TABLE user ADD COLUMN employee_id INTEGER")
+        ensure_column('event', 'setup_minutes', "ALTER TABLE event ADD COLUMN setup_minutes INTEGER DEFAULT 0")
+        ensure_column('event', 'packup_minutes', "ALTER TABLE event ADD COLUMN packup_minutes INTEGER DEFAULT 0")
+
+        # Create admin user if not exists; if schema is out of sync, raise error (do NOT drop data)
+        try:
+            if not User.query.filter_by(username="admin").first():
+                admin = User(username="admin", is_admin=True)
+                admin.set_password("Admin123!")
+                db.session.add(admin)
+                db.session.commit()
+        except OperationalError as e:
+            # Do NOT drop tables or recreate DB. Instead, raise a clear error.
+            raise RuntimeError("Database schema is out of sync with models. Please run a migration or add missing columns manually. No data was deleted.") from e
+
+    # ---------------- EDIT EVENT ROUTE ----------------
+    @app.route('/events/<int:event_id>/edit', methods=['GET', 'POST'])
+    @login_required
+    @admin_required
+    def edit_event(event_id):
+        event = Event.query.get_or_404(event_id)
+        if request.method == 'POST':
+            event.title = request.form.get('title', event.title)
+            event.location = request.form.get('location', event.location)
+            try:
+                event.setup_minutes = int(request.form.get('setup_minutes') or event.setup_minutes or 0)
+            except ValueError:
+                pass
+            try:
+                event.packup_minutes = int(request.form.get('packup_minutes') or event.packup_minutes or 0)
+            except ValueError:
+                pass
+            # Handle times
+            start_time_raw = request.form.get('start_time', '').strip()
+            end_time_raw = request.form.get('end_time', '').strip()
+            try:
+                event.start_time = datetime.strptime(start_time_raw, "%Y-%m-%dT%H:%M") if start_time_raw else event.start_time
+            except ValueError:
+                pass
+            try:
+                event.end_time = datetime.strptime(end_time_raw, "%Y-%m-%dT%H:%M") if end_time_raw else event.end_time
+            except ValueError:
+                pass
+            # Employees
+            event.employees.clear()
+            for emp_id in request.form.getlist('employee_ids'):
+                emp = Employee.query.get(int(emp_id))
+                if emp and emp not in event.employees:
+                    event.employees.append(emp)
+            # Resources
+            event.resources.clear()
+            for res_id in request.form.getlist('resource_ids'):
+                r = Resource.query.get(int(res_id))
+                if r and r not in event.resources:
+                    event.resources.append(r)
+            db.session.commit()
+            return redirect(url_for('events'))
+        # GET: render dedicated edit event page
+        employees = Employee.query.all()
+        resources = Resource.query.all()
+        return render_template('edit_event.html', event=event, employees=employees, resources=resources)
+
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -295,6 +426,14 @@ def create_app():
         )
         db.session.add(emp)
         db.session.commit()
+
+        qualifications_text = request.form.get('qualifications')
+        if qualifications_text:
+            from Database import Qualification
+            q = Qualification(employee_id=emp.id, name=qualifications_text)
+            db.session.add(q)
+            db.session.commit()
+
         return redirect(url_for('employees_overview'))
 
     @app.route('/rosters/new', methods=['POST'])
@@ -336,13 +475,25 @@ def create_app():
         except ValueError:
             packup_minutes = 0
 
+        # Handle empty or invalid start_time/end_time
+        start_time_raw = request.form.get('start_time', '').strip()
+        end_time_raw = request.form.get('end_time', '').strip()
+        try:
+            start_time = datetime.strptime(start_time_raw, "%Y-%m-%dT%H:%M") if start_time_raw else None
+        except ValueError:
+            start_time = None
+        try:
+            end_time = datetime.strptime(end_time_raw, "%Y-%m-%dT%H:%M") if end_time_raw else None
+        except ValueError:
+            end_time = None
+
         e = Event(
-            title=request.form['title'],
-            location=request.form['location'],
+            title=request.form.get('title', ''),
+            location=request.form.get('location', ''),
             setup_minutes=setup_minutes,
             packup_minutes=packup_minutes,
-            start_time=datetime.strptime(request.form['start_time'], "%Y-%m-%dT%H:%M"),
-            end_time=datetime.strptime(request.form['end_time'], "%Y-%m-%dT%H:%M")
+            start_time=start_time,
+            end_time=end_time
         )
 
         # employees (same as before)

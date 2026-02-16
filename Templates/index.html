@@ -169,7 +169,7 @@
           <div class="event-title">{{ e.title }}</div>
           <div class="event-details">
             <span class="event-location">📍 {{ e.location }}</span>
-            <span class="event-time">⏰ {{ e.start_time }} → {{ e.end_time }}</span>
+            <span class="event-time">⏰ {{ e.start_time.strftime('%b %d, %H:%M') if e.start_time else 'N/A' }} → {{ e.end_time.strftime('%H:%M') if e.end_time else 'N/A' }}</span>
           </div>
         </div>
       {% endfor %}
