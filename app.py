@@ -70,6 +70,7 @@ def create_app():
                 existing = [r[1] for r in res]
                 if column not in existing:
                     db.session.execute(add_sql)
+             
                     db.session.commit()
             except Exception:
                 db.session.rollback()
