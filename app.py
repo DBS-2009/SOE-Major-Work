@@ -413,6 +413,41 @@ def create_app():
         db.session.commit()
         return redirect(url_for('employees_overview'))
 
+    @app.route('/employees/<int:employee_id>/edit', methods=['GET', 'POST'])
+    @login_required
+    @admin_required
+    def edit_employee(employee_id):
+        employee = Employee.query.get_or_404(employee_id)
+        if request.method == 'POST':
+            employee.name = request.form.get('name', employee.name)
+            try:
+                employee.age = int(request.form.get('age')) if request.form.get('age') else None
+            except ValueError:
+                pass
+            try:
+                employee.experience_years = int(request.form.get('experience_years') or 0)
+            except ValueError:
+                employee.experience_years = employee.experience_years or 0
+            employee.level_of_training = request.form.get('level_of_training') or employee.level_of_training
+            employee.training_status = request.form.get('training_status') or employee.training_status
+
+            db.session.commit()
+
+            qualifications_text = request.form.get('qualifications')
+            if qualifications_text:
+                try:
+                    from Database import Qualification
+                    q = Qualification(employee_id=employee.id, name=qualifications_text)
+                    db.session.add(q)
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+
+            flash(f"Employee '{employee.name}' updated.")
+            return redirect(url_for('employee_detail', employee_id=employee.id))
+
+        return render_template('edit_employee.html', employee=employee)
+
     @app.route('/employees/new', methods=['POST'])
     @login_required
     @admin_required
@@ -526,6 +561,52 @@ def create_app():
         db.session.add(e)
         db.session.commit()
         return redirect(url_for('events'))
+
+    @app.route('/events/<int:event_id>/edit', methods=['GET', 'POST'])
+    @login_required
+    @admin_required
+    def edit_event(event_id):
+        event = Event.query.get_or_404(event_id)
+        if request.method == 'POST':
+            event.title = request.form.get('title', event.title)
+            event.location = request.form.get('location', event.location)
+            try:
+                event.setup_minutes = int(request.form.get('setup_minutes') or event.setup_minutes or 0)
+            except ValueError:
+                pass
+            try:
+                event.packup_minutes = int(request.form.get('packup_minutes') or event.packup_minutes or 0)
+            except ValueError:
+                pass
+            # Handle times
+            start_time_raw = request.form.get('start_time', '').strip()
+            end_time_raw = request.form.get('end_time', '').strip()
+            try:
+                event.start_time = datetime.strptime(start_time_raw, "%Y-%m-%dT%H:%M") if start_time_raw else event.start_time
+            except ValueError:
+                pass
+            try:
+                event.end_time = datetime.strptime(end_time_raw, "%Y-%m-%dT%H:%M") if end_time_raw else event.end_time
+            except ValueError:
+                pass
+            # Employees
+            event.employees.clear()
+            for emp_id in request.form.getlist('employee_ids'):
+                emp = Employee.query.get(int(emp_id))
+                if emp and emp not in event.employees:
+                    event.employees.append(emp)
+            # Resources
+            event.resources.clear()
+            for res_id in request.form.getlist('resource_ids'):
+                r = Resource.query.get(int(res_id))
+                if r and r not in event.resources:
+                    event.resources.append(r)
+            db.session.commit()
+            return redirect(url_for('events'))
+        # GET: render dedicated edit event page
+        employees = Employee.query.all()
+        resources = Resource.query.all()
+        return render_template('edit_event.html', event=event, employees=employees, resources=resources)
 
     @app.route('/events/<int:event_id>/delete', methods=['POST'])
     @login_required

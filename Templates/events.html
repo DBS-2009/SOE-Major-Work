@@ -310,155 +310,8 @@
         </div>
       </div>
 
-      <!-- Create Preset Modal (Admin) -->
-      <div id="createPresetModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1200; align-items: center; justify-content: center; display: none;">
-        <div style="background: #232f3a; border: 1px solid #2d3f4d; border-radius: 8px; padding: 2rem; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
-          <h3 style="color: #0dccff; margin-bottom: 1.5rem;">Create Resource Preset</h3>
-          <form method="POST" action="/presets/new" id="createPresetForm">
-            <div style="margin-bottom:0.5rem;">
-              <label style="color:#b0bcc4; margin-bottom:0.5rem; display:block;">Preset Name *</label>
-              <input name="name" placeholder="Preset name" style="width:100%; padding:0.5rem; background:#1a252f; border:1px solid #2d3f4d; color:#e0e0e0; border-radius:4px;">
-            </div>
-            <div style="max-height:260px; overflow-y:auto; background:#0f1a20; border-radius:4px; padding:0.5rem; border:1px solid #24303a; margin-bottom:1rem;">
-              {% for res in resources %}
-              <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
-                <input type="checkbox" name="resource_ids" value="{{ res.id }}">
-                <span style="color:#e0e0e0;">{{ res.item_code }} — {{ res.description or 'N/A' }}</span>
-              </label>
-              {% endfor %}
-            </div>
-            <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.75rem;">
-              <button type="button" class="btn btn-secondary" onclick="closeCreatePresetForm()">Cancel</button>
-              <button type="submit" class="btn btn-primary">Create Preset</button>
-            </div>
-          </form>
-        </div>
-      </div>
-      <div id="managePresetsModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1100; align-items: center; justify-content: center; display: none;">
-        <div style="background: #232f3a; border: 1px solid #2d3f4d; border-radius: 8px; padding: 1.5rem; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-            <h3 style="color: #0dccff; margin:0;">Manage Resource Presets</h3>
-            <button class="btn btn-secondary" onclick="closeManagePresets()">Close</button>
-          </div>
-
-          <div style="display:flex; gap:1rem;">
-            <div style="flex:1;">
-              <h4 style="color:#b0bcc4; font-size:0.95rem; margin-bottom:0.5rem;">Existing Presets</h4>
-              {% if presets %}
-              <div style="background:#1a252f; border:1px solid #2d3f4d; border-radius:6px; padding:0.75rem; max-height:360px; overflow-y:auto;">
-                {% for p in presets %}
-                <div style="padding:0.5rem; border-bottom:1px solid #26323a; display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
-                  <div>
-                    <div style="color:#e0e0e0; font-weight:600;">{{ p.name }}</div>
-                    <div style="color:#6b7982; font-size:0.8rem; margin-top:0.25rem;">{% for r in p.resources %} <span style="background: rgba(76, 175, 80, 0.08); color:#9de6a8; padding:0.15rem 0.35rem; border-radius:3px; font-size:0.75rem; margin-right:0.25rem;">{{ r.item_code }}</span>{% endfor %}</div>
-                  </div>
-                  <div style="display:flex; gap:0.5rem;">
-                    <form method="POST" action="/presets/{{ p.id }}/delete" onsubmit="return confirm('Delete preset &quot;{{ p.name }}&quot;?')">
-                      <button type="submit" class="btn" style="color:#ff6b6b; border-color:#ff6b6b;">Delete</button>
-                    </form>
-                  </div>
-                </div>
-                {% endfor %}
-              </div>
-              {% else %}
-              <div style="color:#6b7982;">No presets created yet.</div>
-              {% endif %}
-            </div>
-
-            <div style="width:320px;">
-              <h4 style="color:#b0bcc4; font-size:0.95rem; margin-bottom:0.5rem;">Create Preset</h4>
-              <form method="POST" action="/presets/new" onsubmit="return handlePresetSubmit(event)">
-                <script>
-                  // Prevent both modals from being open at once
-                  function handlePresetSubmit(e) {
-                    // Close the presets modal after submit, do not open event modal
-                    setTimeout(() => closeManagePresets(), 100);
-                    return true;
-                  }
-
-                  // Ensure only one modal is open at a time
-
-                  // Button event listeners for modals
-                  document.getElementById('managePresetsBtn')?.addEventListener('click', function() {
-                    // Always close the create event modal if open
-                    document.getElementById('createEventModal').style.display = 'none';
-                    // Open the manage presets modal
-                    document.getElementById('managePresetsModal').style.display = 'flex';
-                  });
-                  document.getElementById('createEventBtn')?.addEventListener('click', function() {
-                    document.getElementById('managePresetsModal').style.display = 'none';
-                    document.getElementById('createEventModal').style.display = 'flex';
-                  });
-
-                  // Dedicated Create Preset button opens the modal directly to the create form
-                  document.getElementById('createPresetBtn')?.addEventListener('click', function() {
-                    // Only open the preset modal, ensure event modal is closed
-                    document.getElementById('createEventModal').style.display = 'none';
-                    document.getElementById('createPresetModal').style.display = 'flex';
-                  });
-                  function closeCreatePresetForm() {
-                    document.getElementById('createPresetModal').style.display = 'none';
-                  }
-                  document.getElementById('createPresetModal')?.addEventListener('click', function(e) {
-                    if (e.target === this) closeCreatePresetForm();
-                  });
-                  function openManagePresets() {
-                    document.getElementById('createEventModal').style.display = 'none';
-                    document.getElementById('managePresetsModal').style.display = 'flex';
-                  }
-                  function closeManagePresets() {
-                    document.getElementById('managePresetsModal').style.display = 'none';
-                  }
-                  document.getElementById('managePresetsModal')?.addEventListener('click', function(e) {
-                    if (e.target === this) closeManagePresets();
-                  });
-                  function openCreateEventForm() {
-                    document.getElementById('managePresetsModal').style.display = 'none';
-                    document.getElementById('createEventModal').style.display = 'flex';
-                  }
-  // Calendar view buttons (placeholders)
-  document.querySelectorAll('.btn.btn-secondary, .btn.btn-primary').forEach(btn => {
-    if (btn.textContent.includes('Day')) btn.onclick = () => alert('Day view coming soon!');
-    if (btn.textContent.includes('Week')) btn.onclick = () => alert('Week view coming soon!');
-    if (btn.textContent.includes('Month')) btn.onclick = () => alert('Month view coming soon!');
-    if (btn.textContent.includes('Today')) btn.onclick = () => alert('Today button coming soon!');
-  });
-
-  // Add Edit button functionality for events (placeholder)
-  document.querySelectorAll('button').forEach(btn => {
-    if (btn.textContent.trim() === 'Edit') btn.onclick = () => alert('Edit event coming soon!');
-  });
-
-  // Ensure Create Event form submits
-  document.querySelector('#createEventModal form')?.addEventListener('submit', function(e) {
-    // No preventDefault, allow normal submit
-  });
-
-                  // Ensure event form submits
-                  document.querySelector('#createEventModal form')?.addEventListener('submit', function(e) {
-                    // No preventDefault, allow normal submit
-                  });
-                </script>
-                <div style="margin-bottom:0.5rem;">
-                  <input name="name" placeholder="Preset name" required style="width:100%; padding:0.5rem; background:#1a252f; border:1px solid #2d3f4d; color:#e0e0e0; border-radius:4px;">
-                </div>
-                <div style="max-height:260px; overflow-y:auto; background:#0f1a20; border-radius:4px; padding:0.5rem; border:1px solid #24303a;">
-                  {% for res in resources %}
-                  <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
-                    <input type="checkbox" name="resource_ids" value="{{ res.id }}">
-                    <span style="color:#e0e0e0;">{{ res.item_code }} — {{ res.description or 'N/A' }}</span>
-                  </label>
-                  {% endfor %}
-                </div>
-                <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.75rem;">
-                  <button type="button" class="btn btn-secondary" onclick="closeManagePresets()">Cancel</button>
-                  <button type="submit" class="btn btn-primary">Create Preset</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- (Nested Create Preset modal removed to avoid nested <form> elements which break submission.) -->
+      <!-- managePresetsModal moved below to avoid nested <form> inside create-event form -->
 
       <div style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #2d3f4d;">
         <button type="button" class="btn btn-secondary" onclick="closeCreateEventForm()">Cancel</button>
@@ -467,6 +320,61 @@
     </form>
   </div>
 </div>
+
+  <div id="managePresetsModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1100; align-items: center; justify-content: center; display: none;">
+    <div style="background: #232f3a; border: 1px solid #2d3f4d; border-radius: 8px; padding: 1.5rem; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="color: #0dccff; margin:0;">Manage Resource Presets</h3>
+        <button class="btn btn-secondary" onclick="closeManagePresets()">Close</button>
+      </div>
+
+      <div style="display:flex; gap:1rem;">
+        <div style="flex:1;">
+          <h4 style="color:#b0bcc4; font-size:0.95rem; margin-bottom:0.5rem;">Existing Presets</h4>
+          {% if presets %}
+          <div style="background:#1a252f; border:1px solid #2d3f4d; border-radius:6px; padding:0.75rem; max-height:360px; overflow-y:auto;">
+            {% for p in presets %}
+            <div style="padding:0.5rem; border-bottom:1px solid #26323a; display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+              <div>
+                <div style="color:#e0e0e0; font-weight:600;">{{ p.name }}</div>
+                <div style="color:#6b7982; font-size:0.8rem; margin-top:0.25rem;">{% for r in p.resources %} <span style="background: rgba(76, 175, 80, 0.08); color:#9de6a8; padding:0.15rem 0.35rem; border-radius:3px; font-size:0.75rem; margin-right:0.25rem;">{{ r.item_code }}</span>{% endfor %}</div>
+              </div>
+              <div style="display:flex; gap:0.5rem;">
+                <form method="POST" action="/presets/{{ p.id }}/delete" onsubmit="return confirm('Delete preset &quot;{{ p.name }}&quot;?')">
+                  <button type="submit" class="btn" style="color:#ff6b6b; border-color:#ff6b6b;">Delete</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div style="color:#6b7982;">No presets created yet.</div>
+          {% endif %}
+        </div>
+
+        <div style="width:320px;">
+          <h4 style="color:#b0bcc4; font-size:0.95rem; margin-bottom:0.5rem;">Create Preset</h4>
+          <form method="POST" action="/presets/new" onsubmit="return handlePresetSubmit(event)">
+            <div style="margin-bottom:0.5rem;">
+              <input name="name" placeholder="Preset name" required style="width:100%; padding:0.5rem; background:#1a252f; border:1px solid #2d3f4d; color:#e0e0e0; border-radius:4px;">
+            </div>
+            <div style="max-height:260px; overflow-y:auto; background:#0f1a20; border-radius:4px; padding:0.5rem; border:1px solid #24303a;">
+              {% for res in resources %}
+              <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+                <input type="checkbox" name="resource_ids" value="{{ res.id }}">
+                <span style="color:#e0e0e0;">{{ res.item_code }} — {{ res.description or 'N/A' }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.75rem;">
+              <button type="button" class="btn btn-secondary" onclick="closeManagePresets()">Cancel</button>
+              <button type="submit" class="btn btn-primary">Create Preset</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 
 <script>
   // PRESETS: data is stored on each <option> as a data-ids attribute to keep this script valid JS
@@ -595,6 +503,9 @@
       closeCreateEventForm();
     }
   });
+
+  // Attach Create Event button to open the modal
+  document.getElementById('createEventBtn')?.addEventListener('click', openCreateEventForm);
 </script>
 {% endif %}
 
