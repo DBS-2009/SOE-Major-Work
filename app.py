@@ -391,7 +391,8 @@ def create_app():
             else:
                 rosters_q = []
                 employees_q = []
-        return render_template('rosters.html', rosters=rosters_q, employees=employees_q)
+        events_q = Event.query.all()
+        return render_template('rosters.html', rosters=rosters_q, employees=employees_q, events=events_q)
 
     @app.route('/employees')
     @login_required
@@ -476,13 +477,48 @@ def create_app():
     @login_required
     @admin_required
     def new_roster():
+        # Determine job description: use custom input if provided, else use selected event
+        job_desc = request.form.get('job_description')
+        if not job_desc:
+            # fallback to event dropdown if custom input not used
+            job_desc = request.form.get('job_description_select', '')
         r = Roster(
             date=datetime.strptime(request.form['date'], "%Y-%m-%d").date(),
             shift_name=request.form['shift_name'],
             employee_id=int(request.form['employee_id']),
-            job_description=request.form['job_description']
+            job_description=job_desc
         )
         db.session.add(r)
+        db.session.commit()
+        return redirect(url_for('rosters'))
+
+
+    @app.route('/rosters/<int:roster_id>/edit', methods=['GET', 'POST'])
+    @login_required
+    @admin_required
+    def edit_roster(roster_id):
+        roster = Roster.query.get_or_404(roster_id)
+        if request.method == 'POST':
+            roster.date = datetime.strptime(request.form['date'], "%Y-%m-%d").date()
+            roster.shift_name = request.form['shift_name']
+            roster.employee_id = int(request.form['employee_id'])
+            job_desc = request.form.get('job_description')
+            if not job_desc:
+                job_desc = request.form.get('job_description_select', '')
+            roster.job_description = job_desc
+            db.session.commit()
+            return redirect(url_for('rosters'))
+        employees = Employee.query.all()
+        events = Event.query.all()
+        return render_template('edit_roster.html', roster=roster, employees=employees, events=events)
+
+
+    @app.route('/rosters/<int:roster_id>/delete', methods=['POST'])
+    @login_required
+    @admin_required
+    def delete_roster(roster_id):
+        roster = Roster.query.get_or_404(roster_id)
+        db.session.delete(roster)
         db.session.commit()
         return redirect(url_for('rosters'))
 
